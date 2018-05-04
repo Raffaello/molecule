@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -88,7 +88,6 @@ class Delegated(base.Base):
           name: delegated
           safe_files:
             - foo
-            - .molecule/bar
     """
 
     def __init__(self, config):
@@ -120,3 +119,8 @@ class Delegated(base.Base):
 
     def ansible_connection_options(self, instance_name):
         return self.options['ansible_connection_options']
+
+    def _created(self):
+        if self.managed:
+            return super(Delegated, self)._created()
+        return 'unknown'

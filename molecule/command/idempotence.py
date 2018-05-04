@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -32,6 +32,9 @@ LOG = logger.get_logger(__name__)
 
 class Idempotence(base.Base):
     """
+    Runs the converge step a second time. If no tasks will be marked as changed
+    the scenario will be considered idempotent.
+
     Target the default scenario:
 
     $ molecule idempotence
@@ -65,7 +68,7 @@ class Idempotence(base.Base):
             LOG.success(msg)
         else:
             msg = ('Idempotence test failed because of the following tasks:\n'
-                   '{}').format('\n'.join(self._non_idempotent_tasks(output)))
+                   u'{}').format('\n'.join(self._non_idempotent_tasks(output)))
             util.sysexit_with_message(msg)
 
     def _is_idempotent(self, output):
@@ -111,7 +114,7 @@ class Idempotence(base.Base):
             elif line.startswith('changed'):
                 host_name = re.search(r'\[(.*)\]', line).groups()[0]
                 task_name = re.search(r'\[(.*)\]', task_line).groups()[0]
-                res.append('* [{}] => {}'.format(host_name, task_name))
+                res.append(u'* [{}] => {}'.format(host_name, task_name))
 
         return res
 

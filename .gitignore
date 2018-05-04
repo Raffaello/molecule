@@ -6,9 +6,9 @@
 .coverage
 .coverage.*
 .eggs/
-.molecule/
 .tox/
 .vagrant/
 doc/build/
 htmlcov/
+pytestdebug.log
 ubuntu-xenial-16.04-cloudimg-console.log

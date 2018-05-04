@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -24,7 +24,7 @@ from molecule.driver import base
 LOG = logger.get_logger(__name__)
 
 
-class Lxd(base.Base):
+class LXD(base.Base):
     """
     The class responsible for managing `LXD`_ containers.  `LXD`_ is `not` the
     default driver used in Molecule.
@@ -47,13 +47,12 @@ class Lxd(base.Base):
           name: lxd
           safe_files:
             - foo
-            - .molecule/bar
 
     .. _`LXD`: https://linuxcontainers.org/lxd/introduction/
     """  # noqa
 
     def __init__(self, config):
-        super(Lxd, self).__init__(config)
+        super(LXD, self).__init__(config)
         self._name = 'lxd'
 
     @property

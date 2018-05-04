@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -84,7 +84,7 @@ class Scenarios(object):
             format_node=operator.itemgetter(0),
             get_children=operator.itemgetter(1))
 
-        LOG.out(tf.encode('utf-8'))
+        LOG.out(tf)
         LOG.out('')
 
     def _verify(self):

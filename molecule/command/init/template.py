@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -64,7 +64,8 @@ class Template(base.Base):
         cookiecutter.main.cookiecutter(
             url,
             extra_context=self._command_args,
-            no_input=no_input, )
+            no_input=no_input,
+        )
 
         role_directory = os.path.join(os.getcwd(), role_name)
         msg = 'Initialized role in {} successfully.'.format(role_directory)

@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -36,6 +36,11 @@ class Testinfra(base.Base):
 
     Additional options can be passed to `testinfra` through the options
     dict.  Any option set in this section will override the defaults.
+
+    .. note::
+
+        Molecule will remove any options matching '^[v]+$', and pass `-vvv`
+        to the underlying `py.test` command when executing `molecule --debug`.
 
     .. code-block:: yaml
 
@@ -103,17 +108,31 @@ class Testinfra(base.Base):
     @property
     def default_options(self):
         d = self._config.driver.testinfra_options
+        d['p'] = 'no:cacheprovider'
         if self._config.debug:
             d['debug'] = True
+            d['vvv'] = True
         if self._config.args.get('sudo'):
             d['sudo'] = True
 
         return d
 
+    # NOTE(retr0h): Override the base classes' options() to handle
+    # `ansible-galaxy` one-off.
+    @property
+    def options(self):
+        o = self._config.config['verifier']['options']
+        # NOTE(retr0h): Remove verbose options added by the user while in
+        # debug.
+        if self._config.debug:
+            o = util.filter_verbose_permutation(o)
+
+        return util.merge_dicts(self.default_options, o)
+
     @property
     def default_env(self):
-        env = self._config.merge_dicts(os.environ.copy(), self._config.env)
-        env = self._config.merge_dicts(env, self._config.provisioner.env)
+        env = util.merge_dicts(os.environ.copy(), self._config.env)
+        env = util.merge_dicts(env, self._config.provisioner.env)
 
         return env
 

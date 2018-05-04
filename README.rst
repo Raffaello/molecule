@@ -59,24 +59,23 @@ Testing a new role
    :alt: Testing a new role
 
 Testing an existing role
--------------------
+------------------------
 
 .. image:: https://asciinema.org/a/AkQ4KhxuGAxwn1YJX3tM5BZld.png
    :target: https://asciinema.org/a/AkQ4KhxuGAxwn1YJX3tM5BZld?speed=5&autoplay=1&loop=1
+   :alt: Testing an existing role
+
+Docker in Docker
+----------------
+
+.. image:: https://asciinema.org/a/172713.png
+   :target: https://asciinema.org/a/172713?speed=5&autoplay=1&loop=1
    :alt: Testing an existing role
 
 Documentation
 =============
 
 https://molecule.readthedocs.io/
-
-Demo
-====
-
-`Infrastructure Testing with Molecule`_, AnsibleFest SF 2017
-
-.. _`Infrastructure Testing with Molecule`: https://www.ansible.com/infastructure-testing-with-molecule
-
 
 Contact
 =======

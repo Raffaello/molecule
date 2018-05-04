@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -72,9 +72,9 @@ class Base(object):
 
         # Remove empty directories.
         for dirpath, dirs, files in os.walk(
-                self._config.scenario.ephemeral_directory):
+                self._config.scenario.ephemeral_directory, topdown=False):
             if not dirs and not files:
-                os.rmdir(dirpath)
+                os.removedirs(dirpath)
 
     def print_info(self):
         msg = "Scenario: '{}'".format(self._config.scenario.name)
@@ -116,7 +116,8 @@ def get_configs(args, command_args, ansible_args=()):
             molecule_file=util.abs_path(c),
             args=args,
             command_args=command_args,
-            ansible_args=ansible_args, ) for c in glob.glob(MOLECULE_GLOB)
+            ansible_args=ansible_args,
+        ) for c in glob.glob(MOLECULE_GLOB)
     ]
     _verify_configs(configs)
 

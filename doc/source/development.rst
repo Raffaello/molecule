@@ -31,27 +31,31 @@ Tag the release and push to github.com
 
 .. code-block:: bash
 
-    $ git tag 2.0.0
+    $ git tag 2.x.x
     $ git push --tags
 
 Upload to `PyPI`_
 ^^^^^^^^^^^^^^^^^
 
-* Install `Twine`_ using `pip`.
+* Build and upload to  `PyPI`_.
 
     .. code-block:: bash
 
-        $ pip install twine
+        $ make -f build/Makefile build
+        $ make -f build/Makefile push
+        $ make -f build/Makefile clean
 
-* Upload to  `PyPI`_.
+Upload to `Docker Hub`_
+^^^^^^^^^^^^^^^^^^^^^^^
+
+* Build and upload to  `Docker Hub`_.
 
     .. code-block:: bash
 
-        $ cd /path/to/molecule
-        $ git clean -d -x -f molecule/cookiecutter/
-        $ python setup.py sdist bdist_wheel
-        $ twine upload dist/*
-        $ rm -rf build/ dist/
+        $ make -f build/Makefile docker-build
+        $ make -f build/Makefile docker-push
+
+.. _`Docker Hub`: https://hub.docker.com/r/retr0h/molecule/
 
 Post-release
 ------------

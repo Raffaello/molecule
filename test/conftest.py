@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -18,19 +18,33 @@
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
 
-import logging
 import os
 import random
 import shutil
 import string
+import tempfile
 
 import pytest
 
 from molecule import config
+from molecule import logger
+from molecule import util
 
-logging.getLogger('sh').setLevel(logging.WARNING)
+LOG = logger.get_logger(__name__)
 
 pytest_plugins = ['helpers_namespace']
+
+
+@pytest.helpers.register
+def run_command(cmd, env=os.environ, log=True):
+    if log:
+        cmd = _rebake_command(cmd, env)
+
+    return util.run_command(cmd)
+
+
+def _rebake_command(cmd, env, out=LOG.out, err=LOG.error):
+    return cmd.bake(_env=env, _out=out, _err=err)
 
 
 @pytest.fixture
@@ -78,7 +92,11 @@ def get_molecule_file(path):
 
 @pytest.helpers.register
 def molecule_ephemeral_directory():
-    return os.path.join(molecule_scenario_directory(), '.molecule')
+    project_directory = 'test-project'
+    scenario_name = 'test-instance'
+
+    return os.path.join(tempfile.gettempdir(), 'molecule', project_directory,
+                        scenario_name)
 
 
 def pytest_addoption(parser):

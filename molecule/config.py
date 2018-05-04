@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -30,6 +30,7 @@ from molecule import state
 from molecule import util
 from molecule.dependency import ansible_galaxy
 from molecule.dependency import gilt
+from molecule.dependency import shell
 from molecule.driver import azure
 from molecule.driver import delegated
 from molecule.driver import docker
@@ -40,9 +41,10 @@ from molecule.driver import lxd
 from molecule.driver import openstack
 from molecule.driver import vagrant
 from molecule.lint import yamllint
-from molecule.model import schema
+from molecule.model import schema_v2
 from molecule.provisioner import ansible
 from molecule.verifier import goss
+from molecule.verifier import inspec
 from molecule.verifier import testinfra
 
 LOG = logger.get_logger(__name__)
@@ -91,6 +93,8 @@ class Config(object):
         self.config = self._combine()
         self._action = None
 
+        self._validate()
+
     @property
     def debug(self):
         return self.args.get('debug', False)
@@ -116,16 +120,18 @@ class Config(object):
         return molecule_directory(self.project_directory)
 
     @property
+    @util.memoize
     def dependency(self):
         dependency_name = self.config['dependency']['name']
         if dependency_name == 'galaxy':
             return ansible_galaxy.AnsibleGalaxy(self)
         elif dependency_name == 'gilt':
             return gilt.Gilt(self)
-        else:
-            util.exit_with_invalid_section('dependency', dependency_name)
+        elif dependency_name == 'shell':
+            return shell.Shell(self)
 
     @property
+    @util.memoize
     def driver(self):
         driver_name = self._get_driver_name()
         driver = None
@@ -137,19 +143,17 @@ class Config(object):
         elif driver_name == 'docker':
             driver = docker.Docker(self)
         elif driver_name == 'ec2':
-            driver = ec2.Ec2(self)
+            driver = ec2.EC2(self)
         elif driver_name == 'gce':
-            driver = gce.Gce(self)
+            driver = gce.GCE(self)
         elif driver_name == 'lxc':
-            driver = lxc.Lxc(self)
+            driver = lxc.LXC(self)
         elif driver_name == 'lxd':
-            driver = lxd.Lxd(self)
+            driver = lxd.LXD(self)
         elif driver_name == 'openstack':
             driver = openstack.Openstack(self)
         elif driver_name == 'vagrant':
             driver = vagrant.Vagrant(self)
-        else:
-            util.exit_with_invalid_section('driver', driver_name)
 
         driver.name = driver_name
 
@@ -174,52 +178,53 @@ class Config(object):
             'MOLECULE_PROVISIONER_NAME': self.provisioner.name,
             'MOLECULE_SCENARIO_NAME': self.scenario.name,
             'MOLECULE_VERIFIER_NAME': self.verifier.name,
+            'MOLECULE_VERIFIER_TEST_DIRECTORY': self.verifier.directory,
         }
 
     @property
+    @util.memoize
     def lint(self):
         lint_name = self.config['lint']['name']
         if lint_name == 'yamllint':
             return yamllint.Yamllint(self)
-        else:
-            util.exit_with_invalid_section('lint', lint_name)
 
     @property
+    @util.memoize
     def platforms(self):
         return platforms.Platforms(self)
 
     @property
+    @util.memoize
     def provisioner(self):
         provisioner_name = self.config['provisioner']['name']
         if provisioner_name == 'ansible':
             return ansible.Ansible(self)
-        else:
-            util.exit_with_invalid_section('provisioner', provisioner_name)
 
     @property
+    @util.memoize
     def scenario(self):
         return scenario.Scenario(self)
 
     @property
+    @util.memoize
     def state(self):
         return state.State(self)
 
     @property
+    @util.memoize
     def verifier(self):
         verifier_name = self.config['verifier']['name']
         if verifier_name == 'testinfra':
             return testinfra.Testinfra(self)
+        elif verifier_name == 'inspec':
+            return inspec.Inspec(self)
         elif verifier_name == 'goss':
             return goss.Goss(self)
-        else:
-            util.exit_with_invalid_section('verifier', verifier_name)
 
     @property
+    @util.memoize
     def verifiers(self):
         return molecule_verifiers()
-
-    def merge_dicts(self, a, b):
-        return merge_dicts(a, b)
 
     def _get_driver_name(self):
         driver_from_state_file = self.state.driver
@@ -255,14 +260,12 @@ class Config(object):
         with util.open_file(self.molecule_file) as stream:
             try:
                 interpolated_config = i.interpolate(stream.read())
-                base = self.merge_dicts(base,
+                base = util.merge_dicts(base,
                                         util.safe_load(interpolated_config))
             except interpolation.InvalidInterpolation as e:
                 msg = ("parsing config file '{}'.\n\n"
                        '{}\n{}'.format(self.molecule_file, e.place, e.string))
                 util.sysexit_with_message(msg)
-
-        schema.validate(base)
 
         return base
 
@@ -270,6 +273,7 @@ class Config(object):
         return {
             'dependency': {
                 'name': 'galaxy',
+                'command': None,
                 'enabled': True,
                 'options': {},
                 'env': {},
@@ -277,7 +281,7 @@ class Config(object):
             'driver': {
                 'name': 'docker',
                 'provider': {
-                    'name': None
+                    'name': None,
                 },
                 'options': {
                     'managed': True,
@@ -309,7 +313,8 @@ class Config(object):
                     'converge': 'playbook.yml',
                     'destroy': 'destroy.yml',
                     'prepare': 'prepare.yml',
-                    'side_effect': None,
+                    'side_effect': 'side_effect.yml',
+                    'verify': 'verify.yml',
                 },
                 'lint': {
                     'name': 'ansible-lint',
@@ -373,44 +378,22 @@ class Config(object):
             },
         }
 
+    def _validate(self):
+        msg = 'Validating schema {}.'.format(self.molecule_file)
+        LOG.info(msg)
 
-def merge_dicts(a, b):
-    """
-    Merges the values of B into A and returns a new dict.  Uses the same
-    merge strategy as ``config._combine``.
+        # Prior to validation, we must set values.  This allows us to perform
+        # validation in one place.  This feels gross.
+        self.config['dependency']['command'] = self.dependency.command
+        self.config['driver']['name'] = self.driver.name
 
-    ::
+        errors = schema_v2.validate(self.config)
+        if errors:
+            msg = "Failed to validate.\n\n{}".format(errors)
+            util.sysexit_with_message(msg)
 
-        dict a
-
-        b:
-           - c: 0
-           - c: 2
-        d:
-           e: "aaa"
-           f: 3
-
-        dict b
-
-        a: 1
-        b:
-           - c: 3
-        d:
-           e: "bbb"
-
-    Will give an object such as::
-
-        {'a': 1, 'b': [{'c': 3}], 'd': {'e': "bbb", 'f': 3}}
-
-
-    :param a: the target dictionary
-    :param b: the dictionary to import
-    :return: dict
-    """
-    conf = a
-    anyconfig.merge(a, b, ac_merge=MERGE_STRATEGY)
-
-    return conf
+        msg = 'Validation completed successfully.'
+        LOG.success(msg)
 
 
 def molecule_directory(path):
@@ -426,14 +409,18 @@ def molecule_drivers():
         azure.Azure(None).name,
         delegated.Delegated(None).name,
         docker.Docker(None).name,
-        ec2.Ec2(None).name,
-        gce.Gce(None).name,
-        lxc.Lxc(None).name,
-        lxd.Lxd(None).name,
+        ec2.EC2(None).name,
+        gce.GCE(None).name,
+        lxc.LXC(None).name,
+        lxd.LXD(None).name,
         openstack.Openstack(None).name,
         vagrant.Vagrant(None).name,
     ]
 
 
 def molecule_verifiers():
-    return [goss.Goss(None).name, testinfra.Testinfra(None).name]
+    return [
+        goss.Goss(None).name,
+        inspec.Inspec(None).name,
+        testinfra.Testinfra(None).name,
+    ]

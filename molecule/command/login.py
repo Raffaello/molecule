@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -67,8 +67,8 @@ class Login(base.Base):
         :return: None
         """
         c = self._config
-        if not c.state.created and (c.driver.delegated
-                                    and not c.driver.managed):
+        if (not c.state.created
+                and (c.driver.delegated and not c.driver.managed)):
             msg = 'Instances not created.  Please create instances first.'
             util.sysexit_with_message(msg)
 
@@ -109,11 +109,13 @@ class Login(base.Base):
         return match[0]
 
     def _get_login(self, hostname):  # pragma: no cover
+        lines, columns = os.popen('stty size', 'r').read().split()
         login_options = self._config.driver.login_options(hostname)
+        login_options['columns'] = columns
+        login_options['lines'] = lines
         login_cmd = self._config.driver.login_cmd_template.format(
             **login_options)
 
-        lines, columns = os.popen('stty size', 'r').read().split()
         dimensions = (int(lines), int(columns))
         cmd = '/usr/bin/env {}'.format(login_cmd)
         self._pt = pexpect.spawn(cmd, dimensions=dimensions)

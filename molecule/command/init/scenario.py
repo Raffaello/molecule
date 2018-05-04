@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -160,8 +160,11 @@ def scenario(ctx, dependency_name, driver_name, lint_name, provisioner_name,
         'verifier_name': verifier_name,
     }
 
+    if verifier_name == 'inspec':
+        command_args['verifier_lint_name'] = 'rubocop'
+
     if verifier_name == 'goss':
-        command_args.update({'verifier_lint_name': "'None'"})
+        command_args['verifier_lint_name'] = 'yamllint'
 
     s = Scenario(command_args)
     s.execute()

@@ -2,13 +2,141 @@
 History
 *******
 
-Molecule follows `Semantic Versioning`_.  Therefore versioning will be much
-different than previous versions of Molecule.
+2.13.1
+======
 
-It will be safe to pin to MINOR versions of Molecule.  MINOR will add
-functionality in a backwards-compatible manner.
+* Enable Ansible 2.4 support with py36.
 
-.. _`Semantic Versioning`: http://semver.org
+2.13
+====
+
+* Allow the destroying of remote libvirt instances.
+* Bumped testinfra version for Ansible 2.5.1 compatibility.
+* Added RuboCop as Inspec's linter.
+* Minor fixes to Goss verifier playbook.
+* Update documentation for verify and idempotency checks.
+* Added Inspec verifier.
+* Support Void Linux when using Docker driver.
+* Converge with built in Molecule skip tags.
+* Render inventory links relative to scenario dir.
+* Disallow null provider.env values.
+* Log vagrant errors.
+* Enable py36 support for Ansible 2.5.
+* Retry downloading goss 3 times.
+* Delegated driver should report unknown on `molecule list`.
+* Correct Docker container terminal sizing.
+* Bumped Ansible 2.4 minor version in tox.
+* Add docker_host attribute to templates to allow talking to a remote
+  docker daemon.
+* Across-the-board requirements update.
+* Add parameter for Vagrant provider override.
+* Add 'halt' option to Vagrant module.
+
+Important Changes
+-----------------
+
+* Python 3.6 support.
+* Added Inspec verifier.
+* Added RuboCop linter for Inspec.
+
+Breaking Changes
+----------------
+
+* Render inventory links relative to scenario dir instead of ephemeral dir.
+  Unfortunately, this was a side effect of #1218.
+
+2.12.1
+======
+
+* Disable pytest caching plugin.
+
+Important Changes
+-----------------
+
+* No longer need to `.gitignore` the `.pytest_cache/` directory.
+
+2.12
+====
+
+* Ensure prune properly removes empty dirs.
+* Allow verify playbook to be shared.
+* Added cookiecutter tests.
+* Moved temporary files to $TMPDIR.
+* Added and tested Ansible 2.5 support.
+* Remove include tasks from driver playbooks.
+* Set `delete_fip = yes` for os_server resources.
+* Relaxed schema validation for which allows unknown keys in `molecule.yml`.
+* Corrected AnsibleLint `-x` example.
+* Added dind support and docs.
+* Exclude .venv directory from yamllint.
+* Move Molecule playbook vars into host inventory.
+* Switch functional tests to pytest.raises.
+
+Important Changes
+-----------------
+
+* Molecule writes temporary files to `$TMPDIR` hashed as
+  `molecule/$role_name/$scenario_name/`.  Temporary files are no longer
+  written to `$scenario_directory/.molecule/`.
+* No longer need to `.gitignore` the `.molecule/` directory.
+
+Breaking Changes
+----------------
+
+* Users of the Goss verifier will need to change their `verifier.yml` playbook
+  to `verify.yml`.
+
+2.11
+====
+
+* Correct verbose flag options with `--debug`.
+* Bumped Ansible 2.4 and 2.3 minor versions.
+* Reimplemented schema validation with Cerberus.
+* Bumped version of jinja2.
+* Move merge_dicts into util.
+* Forward port Molecule v1 shell dependency manager.
+* Vagrantfile cleanup.
+* Ability to log into a Docker registry.
+
+Important Changes
+-----------------
+
+* Reimplemented schema validation with Cerberus.  The Molecule file is
+  thoroughly validated.  This may result in validation errors if the
+  developer's `molecule.yml` is doing something unusual.
+
+* Cleaned up the Vagrantfile, and allow the developer to change options
+  on the base Vagrant config object.
+
+Breaking Changes
+----------------
+
+* Changed Vagrant's `molecule.yml` `raw_config_args` to
+  `provider_raw_config_args` for differentiating
+  `instance_raw_config_args`.
+
+2.10.1
+======
+
+* Correct Vagrant to automatically insert a keypair.
+* Corrected synced_folders usage.
+
+2.10
+====
+
+* Properly skipping Vagrant speedup keys in provider.
+* Allow Vagrant to automatically insert a keypair.
+* Correct molecule_vagrant.py bug where `provider_options`
+  would cause Vagrant to fail if keys from #1147 were provided.
+* Fix line length in cookie cutter README.
+
+Important Changes
+-----------------
+
+* PR #1147 reduced Vagrant create time, which disabled Vagrant from
+  automatically inserting a keypair.  Molecule's default is now changed
+  back to Vagrant's default of True, which may reduce the speed of Vagrant
+  create as fixed by #1147.
 
 2.9
 ===
@@ -30,11 +158,9 @@ functionality in a backwards-compatible manner.
 Important Changes
 -----------------
 
-These changes do not impact existing projects.  However, if one was using the
-old syntax, and upgraded create.yml, changes would be required.
-
-* The Docker driver's registry has been moved to a key named `url` under
-  `registry`.
+* These changes do not impact existing projects.  However, if one was using the
+  old syntax, and upgraded create.yml, changes would be required.  The Docker
+  driver's registry has been moved to a key named `url` under `registry`.
 
 .. code-block:: yaml
 

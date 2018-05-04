@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -60,18 +60,26 @@ class Vagrant(base.Base):
 
         driver:
           name: vagrant
-        platforms:
-          - name: instance
-            instance_name: "{{ item.name }}"
-            instance_interfaces: "{{ item.interfaces | default(omit) }}"
-            instance_raw_config_args: "{{ item.instance_raw_config_args | default(omit) }}"
-            platform_box: "{{ item.box }}"
-            platform_box_version: "{{ item.box_version | default(omit) }}"
-            platform_box_url: "{{ item.box_url | default(omit) }}"
-            provider_name: "{{ molecule_yml.driver.provider.name }}"
-            provider_memory: "{{ item.memory | default(omit) }}"
-            provider_cpus: "{{ item.cpus | default(omit) }}"
-            provider_raw_config_args: "{{ item.raw_config_args | default(omit) }}"
+        platforms
+          - name: instance-1
+            instance_raw_config_args:
+              - "vm.network 'forwarded_port', guest: 80, host: 8080"
+            interfaces:
+              - auto_config: true
+                network_name: private_network
+                type: dhcp
+            config_options:
+              synced_folder: True
+            box: debian/jessie64
+            box_version: 10.1
+            box_url: http://repo.example.com/images/postmerge/debian.json
+            memory: 1024
+            cpus: 1
+            provider_options:
+              gui: True
+            provider_raw_config_args:
+              - "customize ['modifyvm', :id, '--cpuexecutioncap', '50']"
+            provision: True
 
     .. code-block:: bash
 
@@ -108,7 +116,6 @@ class Vagrant(base.Base):
           name: vagrant
           safe_files:
             - foo
-            - .molecule/bar
 
     .. _`Vagrant`: https://www.vagrantup.com
     """  # noqa
@@ -159,8 +166,7 @@ class Vagrant(base.Base):
     def login_options(self, instance_name):
         d = {'instance': instance_name}
 
-        return self._config.merge_dicts(
-            d, self._get_instance_config(instance_name))
+        return util.merge_dicts(d, self._get_instance_config(instance_name))
 
     def ansible_connection_options(self, instance_name):
         try:

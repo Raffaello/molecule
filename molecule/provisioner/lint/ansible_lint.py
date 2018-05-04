@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -49,10 +49,10 @@ class AnsibleLint(base.Base):
               exclude:
                 - path/exclude1
                 - path/exclude2
-              x:
-                - ANSIBLE0011
-                - ANSIBLE0012
+              x: ["ANSIBLE0011,ANSIBLE0012"]
               force-color: True
+
+    The `x` option has to be passed like this due to a `bug`_ in Ansible Lint.
 
     The role linting can be disabled by setting `enabled` to False.
 
@@ -76,6 +76,7 @@ class AnsibleLint(base.Base):
               FOO: bar
 
     .. _`Ansible Lint`: https://github.com/willthames/ansible-lint
+    .. _`bug`: https://github.com/willthames/ansible-lint/issues/279
     """
 
     def __init__(self, config):
@@ -102,8 +103,8 @@ class AnsibleLint(base.Base):
 
     @property
     def default_env(self):
-        env = self._config.merge_dicts(os.environ.copy(), self._config.env)
-        env = self._config.merge_dicts(env, self._config.provisioner.env)
+        env = util.merge_dicts(os.environ.copy(), self._config.env)
+        env = util.merge_dicts(env, self._config.provisioner.env)
 
         return env
 

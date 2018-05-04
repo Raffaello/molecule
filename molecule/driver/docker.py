@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -48,23 +48,30 @@ class Docker(base.Base):
             image: image_name:tag
             registry:
               url: registry.example.com
+              credentials:
+                username: $USERNAME
+                password: $PASSWORD
+                email: user@example.com
             command: sleep infinity
-            privileged: "{{ item.privileged | default(omit) }}"
+            privileged: True|False
             volumes:
               - /sys/fs/cgroup:/sys/fs/cgroup:ro
             capabilities:
               - SYS_ADMIN
             exposed_ports:
-              - "53/udp"
-              - "53/tcp"
+              - 53/udp
+              - 53/tcp
             published_ports:
-              - "0.0.0.0:8053:53/udp"
-              - "0.0.0.0:8053:53/tcp"
-            ulimits: "{{ item.ulimits | default(omit) }}"
-            dns_servers: "{{ item.dns_servers | default(omit) }}"
+              - 0.0.0.0:8053:53/udp
+              - 0.0.0.0:8053:53/tcp
+            ulimits:
+              - nofile:262144:262144
+            dns_servers:
+              - 8.8.8.8
             networks:
               - name: foo
               - name: bar
+            docker_host: tcp://localhost:12376
 
     .. code-block:: bash
 
@@ -78,7 +85,6 @@ class Docker(base.Base):
           name: docker
           safe_files:
             - foo
-            - .molecule/bar
 
     .. _`Docker`: https://www.docker.com
     """  # noqa
@@ -97,7 +103,11 @@ class Docker(base.Base):
 
     @property
     def login_cmd_template(self):
-        return 'docker exec -ti {instance} bash'
+        return ('docker exec '
+                '-e COLUMNS={columns} '
+                '-e LINES={lines} '
+                '-e TERM=bash '
+                '-ti {instance} bash')
 
     @property
     def default_safe_files(self):

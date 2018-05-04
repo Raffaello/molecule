@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -64,6 +64,43 @@ def test_command_side_effect(scenario_to_test, with_scenario, scenario_name):
     pytest.helpers.run_command(cmd)
 
 
+def test_command_init_role_inspec(temp_dir):
+    role_directory = os.path.join(temp_dir.strpath, 'test-init')
+    options = {
+        'role_name': 'test-init',
+        'verifier_name': 'inspec',
+    }
+    cmd = sh.molecule.bake('init', 'role', **options)
+    pytest.helpers.run_command(cmd)
+
+    os.chdir(role_directory)
+
+    sh.molecule('test')
+
+
+def test_command_init_scenario_inspec(temp_dir):
+    options = {
+        'role_name': 'test-init',
+    }
+    cmd = sh.molecule.bake('init', 'role', **options)
+    pytest.helpers.run_command(cmd)
+
+    role_directory = os.path.join(temp_dir.strpath, 'test-init')
+    os.chdir(role_directory)
+
+    molecule_directory = pytest.helpers.molecule_directory()
+    scenario_directory = os.path.join(molecule_directory, 'test-scenario')
+    options = {
+        'scenario_name': 'test-scenario',
+        'role_name': 'test-init',
+        'verifier_name': 'inspec',
+    }
+    cmd = sh.molecule.bake('init', 'scenario', **options)
+    pytest.helpers.run_command(cmd)
+
+    assert os.path.isdir(scenario_directory)
+
+
 def test_command_init_role_goss(temp_dir):
     role_directory = os.path.join(temp_dir.strpath, 'test-init')
     options = {
@@ -115,13 +152,13 @@ def test_command_init_scenario_with_invalid_role_raises(temp_dir):
         'scenario_name': 'default',
         'role_name': 'invalid-role-name',
     }
-    try:
+    with pytest.raises(sh.ErrorReturnCode) as e:
         cmd = sh.molecule.bake('init', 'scenario', **options)
         pytest.helpers.run_command(cmd, log=False)
-    except sh.ErrorReturnCode as e:
-        msg = ("ERROR: The role 'invalid-role-name' not found. "
-               'Please choose the proper role name.')
-        assert msg in e.stderr
+
+    msg = ("ERROR: The role 'invalid-role-name' not found. "
+           'Please choose the proper role name.')
+    assert msg in str(e.value.stderr)
 
 
 def test_command_init_scenario_as_default_without_default_scenario(temp_dir):
@@ -148,6 +185,8 @@ def test_command_init_scenario_as_default_without_default_scenario(temp_dir):
     assert os.path.isdir(scenario_directory)
 
 
+# NOTE(retr0h): Molecule does not allow the creation of a role without
+# a default scenario.  This tests roles not created by a newer Molecule.
 def test_command_init_scenario_without_default_scenario_raises(temp_dir):
     options = {
         'role_name': 'test-role',
@@ -158,17 +197,21 @@ def test_command_init_scenario_without_default_scenario_raises(temp_dir):
     role_directory = os.path.join(temp_dir.strpath, 'test-role')
     os.chdir(role_directory)
 
+    molecule_directory = pytest.helpers.molecule_directory()
+    scenario_directory = os.path.join(molecule_directory, 'default')
+    shutil.rmtree(scenario_directory)
+
     options = {
         'scenario_name': 'invalid-role-name',
         'role_name': 'test-role',
     }
-    try:
+    with pytest.raises(sh.ErrorReturnCode) as e:
         cmd = sh.molecule.bake('init', 'scenario', **options)
         pytest.helpers.run_command(cmd, log=False)
-    except sh.ErrorReturnCode as e:
-        msg = ('The default scenario not found.  Please create a scenario '
-               "named 'default' first.")
-        assert msg in e.stderr
+
+    msg = ('The default scenario not found.  Please create a scenario '
+           "named 'default' first.")
+    assert msg in str(e.value.stderr)
 
 
 def test_command_init_role_with_template(temp_dir):
@@ -241,15 +284,15 @@ def test_command_test_destroy_strategy_always(scenario_to_test, with_scenario,
     options = {
         'destroy': 'always',
     }
-    try:
+    with pytest.raises(sh.ErrorReturnCode) as e:
         cmd = sh.molecule.bake('test', **options)
         pytest.helpers.run_command(cmd, log=False)
-    except sh.ErrorReturnCode as e:
-        msg = 'An error occured during the test sequence.  Cleaning up.'
-        assert msg in e.stdout
 
-        assert 'PLAY [Destroy]' in e.stdout
-        assert e.exit_code != 0
+    msg = 'An error occured during the test sequence.  Cleaning up.'
+    assert msg in str(e.value.stdout)
+
+    assert 'PLAY [Destroy]' in str(e.value.stdout)
+    assert 0 != e.value.exit_code
 
 
 @pytest.mark.parametrize(
@@ -266,14 +309,14 @@ def test_command_test_destroy_strategy_never(scenario_to_test, with_scenario,
     options = {
         'destroy': 'never',
     }
-    try:
+    with pytest.raises(sh.ErrorReturnCode) as e:
         cmd = sh.molecule.bake('test', **options)
         pytest.helpers.run_command(cmd, log=False)
-    except sh.ErrorReturnCode as e:
-        msg = 'An error occured during the test sequence.  Cleaning up.'
-        assert msg not in e.stdout
 
-        assert e.exit_code != 0
+    msg = 'An error occured during the test sequence.  Cleaning up.'
+    assert msg not in str(e.value.stdout)
+
+    assert 0 != e.value.exit_code
 
 
 @pytest.mark.parametrize(
@@ -291,7 +334,7 @@ def test_host_group_vars(scenario_to_test, with_scenario, scenario_name):
     }
     cmd = sh.molecule.bake('test', **options)
     out = pytest.helpers.run_command(cmd, log=False)
-    out = util.strip_ansi_escape(out.stdout)
+    out = util.strip_ansi_escape(out.stdout.decode('utf-8'))
 
     assert re.search('\[all\].*?ok: \[instance\]', out, re.DOTALL)
     assert re.search('\[example\].*?ok: \[instance\]', out, re.DOTALL)

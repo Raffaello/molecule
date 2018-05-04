@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -51,8 +51,7 @@ class Lint(base.Base):
         """
         self.print_info()
         linters = [
-            l
-            for l in [
+            l for l in [
                 self._config.lint,
                 self._config.verifier.lint,
                 self._config.provisioner.lint,

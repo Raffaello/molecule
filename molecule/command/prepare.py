@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -17,8 +17,6 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
-
-import os
 
 import click
 
@@ -68,18 +66,13 @@ class Prepare(base.Base):
             LOG.warn(msg)
             return
 
-        if self._has_prepare_playbook():
-            self._config.provisioner.prepare()
-        else:
-            msg = ('[DEPRECATION WARNING]:\n  The prepare playbook not found '
-                   'at {}/prepare.yml.  Please add one to the scenarios '
-                   'directory.').format(self._config.scenario.directory)
+        if not self._config.provisioner.playbooks.prepare:
+            msg = 'Skipping, prepare playbook not configured.'
             LOG.warn(msg)
+            return
 
+        self._config.provisioner.prepare()
         self._config.state.change_state('prepared', True)
-
-    def _has_prepare_playbook(self):
-        return os.path.exists(self._config.provisioner.playbooks.prepare)
 
 
 @click.command()

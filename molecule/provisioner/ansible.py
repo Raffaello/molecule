@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -30,11 +30,6 @@ from molecule.provisioner import ansible_playbook
 from molecule.provisioner import ansible_playbooks
 
 LOG = logger.get_logger(__name__)
-UNSAFE_ENV_KEYS = [
-    'ANSIBLE_BECOME',
-    'ANSIBLE_BECOME_METHOD',
-    'ANSIBLE_BECOME_USER',
-]
 
 
 class Ansible(base.Base):
@@ -45,6 +40,9 @@ class Ansible(base.Base):
     Molecule's provisioner manages the instances lifecycle.  However, the user
     must provide the create, destroy, and converge playbooks.  Molecule's
     `init` subcommand will provide the necessary files for convenience.
+
+    Molecule will skip tasks which are taged with either `molecule-notest` or
+    `notest`.
 
     .. important::
 
@@ -64,6 +62,22 @@ class Ansible(base.Base):
     .. important::
 
         Options do not affect the create and destroy actions.
+
+    .. note::
+
+        Molecule will remove any options matching '^[v]+$', and pass `-vvv`
+        to the underlying `ansible-playbook` command when executing
+        `molecule --debug`.
+
+    The create/destroy playbooks for Docker and Vagrant are bundled with
+    Molecule.  These playbooks have a clean API from `molecule.yml`, and
+    are the most commonly used.  The bundled playbooks can still be overriden.
+
+    The playbook loading order is:
+
+    1. provisioner.playbooks.$driver_name.$action
+    2. provisioner.playbooks.$action
+    3. bundled_playbook.$driver_name.$action
 
     .. code-block:: yaml
 
@@ -229,8 +243,8 @@ class Ansible(base.Base):
 
     .. note::
 
-        The source directory linking is relative to the scenario's ephemeral
-        directory (`molecule/$scenario_name/.molecule/`).
+        The source directory linking is relative to the scenario's
+        directory.
 
         The only valid keys are `group_vars` and `host_vars`.  Molecule's
         schema validator will enforce this.
@@ -265,7 +279,6 @@ class Ansible(base.Base):
         :return: None
         """
         super(Ansible, self).__init__(config)
-        self._ansible_playbooks = ansible_playbooks.AnsiblePlaybooks(config)
 
     @property
     def default_config_options(self):
@@ -293,7 +306,9 @@ class Ansible(base.Base):
 
     @property
     def default_options(self):
-        d = {}
+        d = {
+            'skip-tags': 'molecule-notest,notest',
+        }
         if self._config.debug:
             d['vvv'] = True
             d['diff'] = True
@@ -302,40 +317,42 @@ class Ansible(base.Base):
 
     @property
     def default_env(self):
-        env = self._config.merge_dicts(os.environ.copy(), self._config.env)
-        env = self._config.merge_dicts(env, {
-            'ANSIBLE_CONFIG':
-            self._config.provisioner.config_file,
-            'ANSIBLE_ROLES_PATH':
-            ':'.join([
-                util.abs_path(
-                    os.path.join(self._config.scenario.ephemeral_directory,
-                                 'roles')),
-                util.abs_path(
-                    os.path.join(self._config.project_directory,
-                                 os.path.pardir)),
-            ]),
-            'ANSIBLE_LIBRARY':
-            ':'.join([
-                self._get_libraries_directory(),
-                util.abs_path(
-                    os.path.join(self._config.scenario.ephemeral_directory,
-                                 'library')),
-                util.abs_path(
-                    os.path.join(self._config.project_directory, 'library')),
-            ]),
-            'ANSIBLE_FILTER_PLUGINS':
-            ':'.join([
-                self._get_filter_plugin_directory(),
-                util.abs_path(
-                    os.path.join(self._config.scenario.ephemeral_directory,
-                                 'plugins', 'filters')),
-                util.abs_path(
-                    os.path.join(self._config.project_directory, 'plugins',
-                                 'filters')),
-            ]),
-        })
-        env = self._config.merge_dicts(env, self._config.env)
+        env = util.merge_dicts(os.environ.copy(), self._config.env)
+        env = util.merge_dicts(
+            env, {
+                'ANSIBLE_CONFIG':
+                self._config.provisioner.config_file,
+                'ANSIBLE_ROLES_PATH':
+                ':'.join([
+                    util.abs_path(
+                        os.path.join(self._config.scenario.ephemeral_directory,
+                                     'roles')),
+                    util.abs_path(
+                        os.path.join(self._config.project_directory,
+                                     os.path.pardir)),
+                ]),
+                'ANSIBLE_LIBRARY':
+                ':'.join([
+                    self._get_libraries_directory(),
+                    util.abs_path(
+                        os.path.join(self._config.scenario.ephemeral_directory,
+                                     'library')),
+                    util.abs_path(
+                        os.path.join(self._config.project_directory,
+                                     'library')),
+                ]),
+                'ANSIBLE_FILTER_PLUGINS':
+                ':'.join([
+                    self._get_filter_plugin_directory(),
+                    util.abs_path(
+                        os.path.join(self._config.scenario.ephemeral_directory,
+                                     'plugins', 'filters')),
+                    util.abs_path(
+                        os.path.join(self._config.project_directory, 'plugins',
+                                     'filters')),
+                ]),
+            })
+        env = util.merge_dicts(env, self._config.env)
 
         return env
 
@@ -345,7 +362,7 @@ class Ansible(base.Base):
 
     @property
     def config_options(self):
-        return self._config.merge_dicts(
+        return util.merge_dicts(
             self.default_config_options,
             self._config.config['provisioner']['config_options'])
 
@@ -353,15 +370,19 @@ class Ansible(base.Base):
     def options(self):
         if self._config.action in ['create', 'destroy']:
             return self.default_options
-        return self._config.merge_dicts(
-            self.default_options,
-            self._config.config['provisioner']['options'])
+
+        o = self._config.config['provisioner']['options']
+        # NOTE(retr0h): Remove verbose options added by the user while in
+        # debug.
+        if self._config.debug:
+            o = util.filter_verbose_permutation(o)
+
+        return util.merge_dicts(self.default_options, o)
 
     @property
     def env(self):
         default_env = self.default_env
-        env = self._sanitize_env(
-            self._config.config['provisioner']['env'].copy())
+        env = self._config.config['provisioner']['env'].copy()
 
         roles_path = default_env['ANSIBLE_ROLES_PATH']
         library_path = default_env['ANSIBLE_LIBRARY']
@@ -389,7 +410,7 @@ class Ansible(base.Base):
         env['ANSIBLE_LIBRARY'] = library_path
         env['ANSIBLE_FILTER_PLUGINS'] = filter_plugins_path
 
-        return self._config.merge_dicts(default_env, env)
+        return util.merge_dicts(default_env, env)
 
     @property
     def host_vars(self):
@@ -434,8 +455,25 @@ class Ansible(base.Base):
             for group in platform.get('groups', ['ungrouped']):
                 instance_name = platform['name']
                 connection_options = self.connection_options(instance_name)
+                molecule_vars = {
+                    'molecule_file':
+                    "{{ lookup('env', 'MOLECULE_FILE') }}",
+                    'molecule_ephemeral_directory':
+                    "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}",
+                    'molecule_scenario_directory':
+                    "{{ lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') }}",
+                    'molecule_yml':
+                    "{{ lookup('file', molecule_file) | molecule_from_yaml }}",
+                    'molecule_instance_config':
+                    "{{ lookup('env', 'MOLECULE_INSTANCE_CONFIG') }}",
+                }
+
+                # All group
                 dd['all']['hosts'][instance_name] = connection_options
+                dd['all']['vars'] = molecule_vars
+                # Named group
                 dd[group]['hosts'][instance_name] = connection_options
+                dd[group]['vars'] = molecule_vars
                 # Ungrouped
                 dd['ungrouped']['vars'] = {}
                 # Children
@@ -456,13 +494,20 @@ class Ansible(base.Base):
                             'ansible.cfg')
 
     @property
+    @util.memoize
     def playbooks(self):
-        return self._ansible_playbooks
+        return ansible_playbooks.AnsiblePlaybooks(self._config)
+
+    @property
+    def directory(self):
+        return os.path.join(
+            os.path.dirname(__file__), os.path.pardir, os.path.pardir,
+            'molecule', 'provisioner', 'ansible')
 
     def connection_options(self, instance_name):
         d = self._config.driver.ansible_connection_options(instance_name)
 
-        return self._config.merge_dicts(
+        return util.merge_dicts(
             d, self._config.config['provisioner']['connection_options'])
 
     def check(self):
@@ -544,14 +589,22 @@ class Ansible(base.Base):
         pb.add_cli_arg('syntax-check', True)
         pb.execute()
 
+    def verify(self):
+        """
+        Executes `ansible-playbook` against the verify playbook and returns
+        None.
+
+        :return: None
+        """
+        pb = self._get_ansible_playbook(self.playbooks.verify)
+        pb.execute()
+
     def write_config(self):
         """
         Writes the provisioner's config file to disk and returns None.
 
         :return: None
         """
-        # self._verify_config()
-
         template = util.render_template(
             self._get_config_template(), config_options=self.config_options)
         util.write_file(self.config_file, template)
@@ -569,7 +622,7 @@ class Ansible(base.Base):
         else:
             self._link_or_update_vars()
 
-    def get_abs_path(self, path):
+    def abs_path(self, path):
         return util.abs_path(
             os.path.join(self._config.scenario.directory, path))
 
@@ -645,8 +698,7 @@ class Ansible(base.Base):
         """
         for d, source in self.links.items():
             target = os.path.join(self._config.scenario.ephemeral_directory, d)
-            source = os.path.join(self._config.scenario.ephemeral_directory,
-                                  source)
+            source = os.path.join(self._config.scenario.directory, source)
 
             if not os.path.exists(source):
                 msg = "The source path '{}' does not exist.".format(source)
@@ -708,9 +760,7 @@ class Ansible(base.Base):
         return d
 
     def _get_plugin_directory(self):
-        return os.path.join(
-            os.path.dirname(__file__), '..', '..', 'molecule', 'provisioner',
-            'ansible', 'plugins')
+        return os.path.join(self.directory, 'plugins')
 
     def _get_libraries_directory(self):
         return util.abs_path(
@@ -720,15 +770,5 @@ class Ansible(base.Base):
         return util.abs_path(
             os.path.join(self._get_plugin_directory(), 'filters'))
 
-    def _sanitize_env(self, env):
-        for unsafe_env in UNSAFE_ENV_KEYS:
-            if env.get(unsafe_env):
-                msg = ("Disallowed user provided env option '{}'.  "
-                       'Removing.').format(unsafe_env)
-                LOG.warn(msg)
-                del env[unsafe_env]
-
-        return env
-
     def _absolute_path_for(self, env, key):
-        return ':'.join([self.get_abs_path(p) for p in env[key].split(':')])
+        return ':'.join([self.abs_path(p) for p in env[key].split(':')])

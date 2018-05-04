@@ -1,4 +1,4 @@
-#  Copyright (c) 2015-2017 Cisco Systems, Inc.
+#  Copyright (c) 2015-2018 Cisco Systems, Inc.
 #
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to
@@ -49,7 +49,7 @@ def with_scenario(request, scenario_to_test, driver_name, scenario_name,
                 'all': True,
             }
             cmd = sh.molecule.bake('destroy', **options)
-            run_command(cmd)
+            pytest.helpers.run_command(cmd)
 
     request.addfinalizer(cleanup)
 
@@ -75,46 +75,48 @@ def idempotence(scenario_name):
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('create', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     options = {
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('converge', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     options = {
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('idempotence', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
 
 @pytest.helpers.register
 def init_role(temp_dir, driver_name):
     role_directory = os.path.join(temp_dir.strpath, 'test-init')
 
-    cmd = sh.molecule.bake(
-        'init', 'role', {'driver-name': driver_name,
-                         'role-name': 'test-init'})
-    run_command(cmd)
+    cmd = sh.molecule.bake('init', 'role', {
+        'driver-name': driver_name,
+        'role-name': 'test-init'
+    })
+    pytest.helpers.run_command(cmd)
 
     os.chdir(role_directory)
     options = {
         'all': True,
     }
     cmd = sh.molecule.bake('test', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
 
 @pytest.helpers.register
 def init_scenario(temp_dir, driver_name):
     # Create role
     role_directory = os.path.join(temp_dir.strpath, 'test-init')
-    cmd = sh.molecule.bake(
-        'init', 'role', {'driver-name': driver_name,
-                         'role-name': 'test-init'})
-    run_command(cmd)
+    cmd = sh.molecule.bake('init', 'role', {
+        'driver-name': driver_name,
+        'role-name': 'test-init'
+    })
+    pytest.helpers.run_command(cmd)
     os.chdir(role_directory)
 
     # Create scenario
@@ -126,7 +128,7 @@ def init_scenario(temp_dir, driver_name):
         'role_name': 'test-init',
     }
     cmd = sh.molecule.bake('init', 'scenario', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     assert os.path.isdir(scenario_directory)
 
@@ -135,14 +137,14 @@ def init_scenario(temp_dir, driver_name):
         'all': True,
     }
     cmd = sh.molecule.bake('test', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
 
 @pytest.helpers.register
 def list(x):
     cmd = sh.molecule.bake('list')
-    out = run_command(cmd, log=False)
-    out = out.stdout
+    out = pytest.helpers.run_command(cmd, log=False)
+    out = out.stdout.decode('utf-8')
     out = util.strip_ansi_color(out)
 
     assert x in out
@@ -151,8 +153,8 @@ def list(x):
 @pytest.helpers.register
 def list_with_format_plain(x):
     cmd = sh.molecule.bake('list', {'format': 'plain'})
-    out = run_command(cmd, log=False)
-    out = out.stdout
+    out = pytest.helpers.run_command(cmd, log=False)
+    out = out.stdout.decode('utf-8')
     out = util.strip_ansi_color(out)
 
     assert x in out
@@ -164,13 +166,13 @@ def login(login_args, scenario_name='default'):
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('destroy', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     options = {
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('create', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     for instance, regexp in login_args:
         if len(login_args) > 1:
@@ -198,7 +200,7 @@ def test(driver_name, scenario_name='default'):
         }
 
     cmd = sh.molecule.bake('test', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
 
 @pytest.helpers.register
@@ -207,31 +209,19 @@ def verify(scenario_name='default'):
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('create', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     options = {
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('converge', **options)
-    run_command(cmd)
+    pytest.helpers.run_command(cmd)
 
     options = {
         'scenario_name': scenario_name,
     }
     cmd = sh.molecule.bake('verify', **options)
-    run_command(cmd)
-
-
-@pytest.helpers.register
-def run_command(cmd, env=os.environ, log=True):
-    if log:
-        cmd = _rebake_command(cmd, env)
-
-    return util.run_command(cmd)
-
-
-def _rebake_command(cmd, env, out=LOG.out, err=LOG.error):
-    return cmd.bake(_env=env, _out=out, _err=err)
+    pytest.helpers.run_command(cmd)
 
 
 def get_docker_executable():
